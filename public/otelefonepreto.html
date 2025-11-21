@@ -471,9 +471,9 @@
       els.reviewsList.innerHTML = '<div style="padding:20px;color:var(--muted)">Carregando avaliações...</div>';
 
       const { data, error } = await supabase
-        .from('reviews_unificada')
-  .select('*')
-  .eq('movie_slug', 'otelefonepreto')
+        .from('reviews_telefonepreto')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error(error);
@@ -493,10 +493,10 @@
       // Se tem ID, é update. Se não, é insert (removemos ID do payload para o DB gerar)
       if (payload.id) {
         const { id, ...updateData } = payload;
-        query = supabase.from('reviews').update(updateData).eq('id', id);
+        query = supabase.from('reviews_telefonepreto').update(updateData).eq('id', id);
       } else {
         const { id, ...insertData } = payload; // Remove ID vazio
-        query = supabase.from('reviews').insert(insertData);
+        query = supabase.from('reviews_telefonepreto').insert(insertData);
       }
 
       const { error } = await query;
