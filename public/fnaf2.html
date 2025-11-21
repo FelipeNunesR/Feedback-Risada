@@ -345,8 +345,6 @@
       <section class="card">
         <h2>Enviar nova avaliação</h2>
         <form id="reviewForm">
-          <input type="hidden" id="editId" value="">
-
           <div style="margin-top:12px">
             <label for="name">Nome</label>
             <input id="name" type="text" placeholder="Seu nome — opcional" />
@@ -457,7 +455,6 @@
       submitLoader: document.getElementById('submitLoader'),
       submitText: document.getElementById('submitText'),
       status: document.getElementById('formStatus'),
-      editId: document.getElementById('editId'),
       btnRefresh: document.getElementById('btnRefresh')
     };
 
@@ -485,21 +482,12 @@
       render();
     }
 
-    // CRIAR (CREATE) ou ATUALIZAR (UPDATE)
+    // CRIAR (CREATE) - Edição removida, apenas cria novo
     async function upsertReview(payload) {
       setLoading(true);
 
-      let query;
-      // Se tem ID, é update. Se não, é insert (removemos ID do payload para o DB gerar)
-      if (payload.id) {
-        const { id, ...updateData } = payload;
-        query = supabase.from('reviews_fnaf').update(updateData).eq('id', id);
-      } else {
-        const { id, ...insertData } = payload; // Remove ID vazio
-        query = supabase.from('reviews_fnaf').insert(insertData);
-      }
-
-      const { error } = await query;
+      // Sempre insere como novo
+      const { error } = await supabase.from('reviews_fnaf').insert(payload);
 
       setLoading(false);
 
@@ -508,11 +496,9 @@
         els.status.textContent = 'Erro ao salvar: ' + error.message;
       } else {
         els.status.style.color = 'var(--success)';
-        els.status.textContent = 'Avaliação salva com sucesso!';
+        els.status.textContent = 'Avaliação enviada com sucesso!';
         els.form.reset();
         setRating(0);
-        els.editId.value = "";
-        els.submitText.textContent = "Enviar avaliação";
         fetchReviews(); // Recarrega a lista
 
         // Limpa mensagem após 3 seg
@@ -520,15 +506,7 @@
       }
     }
 
-    // DELETAR (DELETE)
-    async function deleteReview(id) {
-      if (!confirm('Deseja realmente excluir?')) return;
-
-      const { error } = await supabase.from('reviews').delete().eq('id', id);
-
-      if (error) alert('Erro ao excluir: ' + error.message);
-      else fetchReviews();
-    }
+    // Função DELETE e UPDATE removidas
 
     // ----- UI & UTILITÁRIOS -----
 
@@ -559,6 +537,7 @@
       list.forEach(r => {
         const div = document.createElement('article');
         div.className = 'review';
+        // Botões de ação (editar/excluir) removidos do HTML abaixo
         div.innerHTML = `
           <div class="avatar">${(r.name || 'AN').slice(0, 2).toUpperCase()}</div>
           <div class="rv-body">
@@ -569,10 +548,6 @@
                   ${escapeHtml(r.name || 'Anônimo')} • ${new Date(r.created_at).toLocaleDateString('pt-BR')} 
                   <span class="chip">${r.rating}★</span>
                 </div>
-              </div>
-              <div class="rv-actions">
-                <button class="btn secondary" onclick="startEdit('${r.id}')">Editar</button>
-                <button class="btn secondary" style="color:var(--danger);border-color:rgba(239,68,68,0.2)" onclick="deleteReview('${r.id}')">Excluir</button>
               </div>
             </div>
             <p style="margin-top:8px;color:var(--muted);white-space:pre-wrap">${escapeHtml(r.comment)}</p>
@@ -587,22 +562,6 @@
 
       els.avgScore.textContent = allReviews.length ? (Math.round(totalAvg * 10) / 10) + ' / 5' : '—';
       els.countLabel.textContent = allReviews.length + ' avaliações no total';
-    }
-
-    function startEdit(id) {
-      const r = allReviews.find(x => x.id === id);
-      if (!r) return;
-
-      // Preencher formulário
-      document.getElementById('name').value = r.name || '';
-      document.getElementById('email').value = r.email || '';
-      document.getElementById('title').value = r.title;
-      document.getElementById('comment').value = r.comment;
-      els.editId.value = r.id;
-      setRating(r.rating);
-
-      els.submitText.textContent = "Atualizar avaliação";
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function setRating(n) {
@@ -639,14 +598,14 @@
       const rating = Number(els.ratingInp.value);
       const name = document.getElementById('name').value.trim();
       const email = document.getElementById('email').value.trim();
-      const id = els.editId.value;
 
       if (!title || !comment || rating < 1) {
         alert('Preencha título, comentário e selecione uma nota.');
         return;
       }
 
-      upsertReview({ id, title, comment, rating, name, email });
+      // Passa o payload sem ID (sempre criando novo)
+      upsertReview({ title, comment, rating, name, email });
     });
 
     // Filtros / Limpar
@@ -655,18 +614,12 @@
     els.btnClear.addEventListener('click', () => {
       els.form.reset();
       setRating(0);
-      els.editId.value = "";
-      els.submitText.textContent = "Enviar avaliação";
     });
 
     els.btnRefresh.addEventListener('click', fetchReviews);
 
     // Inicialização
     window.addEventListener('DOMContentLoaded', fetchReviews);
-
-    // Expor funções para o HTML inline (onclick)
-    window.deleteReview = deleteReview;
-    window.startEdit = startEdit;
 
   </script>
 </body>
